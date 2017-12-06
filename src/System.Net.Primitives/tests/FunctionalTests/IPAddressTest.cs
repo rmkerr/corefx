@@ -149,6 +149,17 @@ namespace System.Net.Primitives.Functional.Tests
         }
 
         [Fact]
+        public static void ScopeId_Set_UpdatesString()
+        {
+            IPAddress ip = IPV6Address1();
+            string scopeNotSet = ip.ToString();
+
+            ip.ScopeId = 700;
+
+            Assert.NotEqual(ip.ToString(), scopeNotSet);
+        }
+
+        [Fact]
         public static void HostToNetworkOrder_Compare_Equal()
         {
             long l1 = (long)0x1350;
