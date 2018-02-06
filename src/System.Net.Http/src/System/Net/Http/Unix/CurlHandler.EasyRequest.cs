@@ -358,11 +358,7 @@ namespace System.Net.Http
                     // Just as with WinHttpHandler, for security reasons, we drop the server credential if it is 
                     // anything other than a CredentialCache. We allow credentials in a CredentialCache since they 
                     // are specifically tied to URIs.
-                    /*updatedCredentials = _handler._useDefaultCredentials ?
-                        GetDefaultCredentialAndAuth() : 
-                        GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);*/
-                    //updatedCredentials = GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);
-                    if(_handler.Credentials is CredentialCache)
+                    if(!_handler._useDefaultCredentials)
                     {
                         updatedCredentials = GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);
                     }
