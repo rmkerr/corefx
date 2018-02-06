@@ -362,8 +362,6 @@ namespace System.Net.Http
                         GetDefaultCredentialAndAuth() : 
                         GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);
 
-                    _requestMessage.Headers.Authorization = null;
-
                     // Reset proxy - it is possible that the proxy has different credentials for the new URI
                     SetProxyOptions(newUri);
 
