@@ -113,7 +113,7 @@ namespace System.Net.Http
                 SetProxyOptions(_requestMessage.RequestUri);
                 SetCredentialsOptions(_handler._useDefaultCredentials ? GetDefaultCredentialAndAuth() : _handler.GetCredentials(_requestMessage.RequestUri));
                 SetCookieOption(_requestMessage.RequestUri);
-                SetRequestHeaders();
+                SetRequestHeaders(false);
                 SetSslOptions();
 
                 EventSourceTrace("Done configuring request.");
@@ -380,7 +380,7 @@ namespace System.Net.Http
 
                 // Set the headers again. This is a workaround for libcurl's limitation in handling 
                 // headers with empty values.
-                SetRequestHeaders();
+                SetRequestHeaders(true);
             }
 
             private void SetContentLength(CURLoption lengthOption)
@@ -700,7 +700,7 @@ namespace System.Net.Http
                 }
             }
 
-            internal void SetRequestHeaders()
+            internal void SetRequestHeaders(bool isRedirect)
             {
                 var slist = new SafeCurlSListHandle();
 
@@ -738,6 +738,11 @@ namespace System.Net.Http
                 if (!_requestMessage.Headers.ExpectContinue.GetValueOrDefault())
                 {
                     ThrowOOMIfFalse(Interop.Http.SListAppend(slist, NoExpect));
+                }
+
+                if(isRedirect)
+                {
+                    ThrowOOMIfFalse(Interop.Http.SListAppend(slist, NoAuthorization));
                 }
 
                 if (!slist.IsInvalid)

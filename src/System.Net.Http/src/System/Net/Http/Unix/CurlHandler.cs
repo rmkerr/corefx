@@ -102,6 +102,7 @@ namespace System.Net.Http
         private const string NoTransferEncoding = HttpKnownHeaderNames.TransferEncoding + ":";
         private const string NoContentType = HttpKnownHeaderNames.ContentType + ":";
         private const string NoExpect = HttpKnownHeaderNames.Expect + ":";
+        private const string NoAuthorization = HttpKnownHeaderNames.Authorization + ":";
         private const int CurlAge = 5;
         private const int MinCurlAge = 3;
 
