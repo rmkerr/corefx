@@ -361,7 +361,12 @@ namespace System.Net.Http
                     /*updatedCredentials = _handler._useDefaultCredentials ?
                         GetDefaultCredentialAndAuth() : 
                         GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);*/
-                    updatedCredentials = GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);
+                    //updatedCredentials = GetCredentials(newUri, _handler.Credentials as CredentialCache, s_orderedAuthTypes);
+                    if(!(_handler.Credentials is CredentialCache))
+                    {
+                        _handler.Credentials = null;
+                    }
+                    
                     // Reset proxy - it is possible that the proxy has different credentials for the new URI
                     SetProxyOptions(newUri);
 
@@ -372,14 +377,13 @@ namespace System.Net.Http
                     }
                 }
 
-                // Set the headers again. This is a workaround for libcurl's limitation in handling 
-                // headers with empty values.
-                SetRequestHeaders(true);
-
                 // Set up the new credentials, either for the new Uri if we were able to get it, 
                 // or to empty creds if we couldn't.
                 SetCredentialsOptions(updatedCredentials);
-                Console.WriteLine(updatedCredentials);
+
+                // Set the headers again. This is a workaround for libcurl's limitation in handling 
+                // headers with empty values.
+                SetRequestHeaders(false);
             }
 
             private void SetContentLength(CURLoption lengthOption)
