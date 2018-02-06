@@ -372,13 +372,13 @@ namespace System.Net.Http
                     }
                 }
 
-                // Set up the new credentials, either for the new Uri if we were able to get it, 
-                // or to empty creds if we couldn't.
-                SetCredentialsOptions(updatedCredentials);
-
                 // Set the headers again. This is a workaround for libcurl's limitation in handling 
                 // headers with empty values.
                 SetRequestHeaders(true);
+
+                // Set up the new credentials, either for the new Uri if we were able to get it, 
+                // or to empty creds if we couldn't.
+                SetCredentialsOptions(updatedCredentials);
             }
 
             private void SetContentLength(CURLoption lengthOption)
