@@ -155,5 +155,21 @@ namespace System.Net.Http.Functional.Tests
     public sealed class PlatformHandler_HttpClientHandler_Authentication_Test : HttpClientHandler_Authentication_Test
     {
         protected override bool UseSocketsHttpHandler => false;
+
+        [Theory]
+        [MemberData(nameof(Authentication_PlatformHttpHandler_TestData))]
+        public async void SocketsHttpHandler_Authentication_Succeeds(string authenticateHeader, bool authAttempted, bool authSucceeds)
+        {
+            await HttpClientHandler_Authentication_Succeeds(authenticateHeader, authAttempted, authSucceeds );
+        }
+
+        public static IEnumerable<object[]> Authentication_PlatformHttpHandler_TestData()
+        {
+            // These test cases pass on SocketsHttpHandler, fail everywhere else.
+            // TODO: #28065: Investigate failing authentication test cases on WinHttpHandler & CurlHandler.
+            yield return new object[] { "Digest ", true, false };
+            yield return new object[] { "Digest realm=withoutquotes, nonce=withoutquotes", true, true };
+            yield return new object[] { "Digest realm=\"testrealm\", nonce=\"testnonce\", algorithm=\"myown\"", true, false };
+        }
     }
 }

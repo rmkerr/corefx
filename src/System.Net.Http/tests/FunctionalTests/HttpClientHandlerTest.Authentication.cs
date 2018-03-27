@@ -32,7 +32,7 @@ namespace System.Net.Http.Functional.Tests
 
         [Theory]
         [MemberData(nameof(Authentication_TestData))]
-        public async Task HttpClientHandler_Authentication_Succeeds(string authenticateHeader, bool result)
+        public async Task HttpClientHandler_Authentication_Succeeds(string authenticateHeader, bool authAttempted, bool authSucceeds)
         {
             if (PlatformDetection.IsWindowsNanoServer || (IsCurlHandler && authenticateHeader.ToLowerInvariant().Contains("digest")))
             {
@@ -45,13 +45,46 @@ namespace System.Net.Http.Functional.Tests
             {
                 string serverAuthenticateHeader = $"WWW-Authenticate: {authenticateHeader}\r\n";
                 HttpClientHandler handler = CreateHttpClientHandler();
-                Task serverTask = result ?
+                Task serverTask = authAttempted ?
                     server.AcceptConnectionPerformAuthenticationAndCloseAsync(serverAuthenticateHeader) :
                     server.AcceptConnectionSendResponseAndCloseAsync(HttpStatusCode.Unauthorized, serverAuthenticateHeader);
 
                 await TestHelper.WhenAllCompletedOrAnyFailedWithTimeout(TestHelper.PassingTestTimeoutMilliseconds,
-                    s_createAndValidateRequest(handler, url, result ? HttpStatusCode.OK : HttpStatusCode.Unauthorized, s_credentials), serverTask);
+                    s_createAndValidateRequest(handler, url, authSucceeds ? HttpStatusCode.OK : HttpStatusCode.Unauthorized, s_credentials), serverTask);
             }, options);
+        }
+
+        public static IEnumerable<object[]> Authentication_TestData()
+        {
+            yield return new object[] { "Basic realm=\"testrealm\", basic realm=\"testrealm\"", true, true };
+            yield return new object[] { "Basic realm=\"testrealm\", digest realm=\"testrealm\", nonce=\"testnonce\"", true, true };
+
+            yield return new object[] { "Basic realm=\"testrealm\"", true, true };
+            yield return new object[] { "Basic ", true, true };
+            yield return new object[] { "Basic realm=withoutquotes", true, true };
+            yield return new object[] { "basic ", true, true };
+            yield return new object[] { "bAsiC ", true, true };
+            yield return new object[] { "basic", true, true };
+
+            // Add digest tests fail on CurlHandler.
+            // TODO: #28065: Fix failing authentication test cases on different httpclienthandlers.
+            yield return new object[] { "Digest realm=\"testrealm\" nonce=\"testnonce\"", false, false };
+            yield return new object[] { $"Digest realm=\"testrealm\", nonce=\"{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{DateTimeOffset.UtcNow}:XMh;z+$5|`i6Hx}}\", qop=auth-int, algorithm=MD5"))}\"", true, true };
+            yield return new object[] { "Digest realm=\"api@example.org\", qop=\"auth\", algorithm=MD5-sess, nonce=\"5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK\", " +
+                    "opaque=\"HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS\", charset=UTF-8, userhash=true", true, true };
+            yield return new object[] { "dIgEsT realm=\"api@example.org\", qop=\"auth\", algorithm=MD5-sess, nonce=\"5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK\", " +
+                    "opaque=\"HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS\", charset=UTF-8, userhash=true", true, true };
+            yield return new object[] { $"Basic realm=\"testrealm\", " +
+                    $"Digest realm=\"testrealm\", nonce=\"{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{DateTimeOffset.UtcNow}:XMh;z+$5|`i6Hx}}"))}\", algorithm=MD5", true, true };
+
+            if (PlatformDetection.IsNetCore)
+            {
+                // TODO: #28060: Fix failing authentication test cases on Framework run.
+                yield return new object[] { "Digest realm=\"testrealm1\", nonce=\"testnonce1\" Digest realm=\"testrealm2\", nonce=\"testnonce2\"", false, false };
+                yield return new object[] { "Basic something, Digest something", false, false };
+                yield return new object[] { $"Digest realm=\"testrealm\", nonce=\"testnonce\", algorithm=MD5 " +
+                    $"Basic realm=\"testrealm\"", false, false };
+            }
         }
 
         [Theory]
@@ -128,36 +161,6 @@ namespace System.Net.Http.Functional.Tests
                 Task serverTask = server.AcceptConnectionPerformAuthenticationAndCloseAsync(authenticateHeader);
                 await TestHelper.WhenAllCompletedOrAnyFailed(s_createAndValidateRequest(handler, url, HttpStatusCode.Unauthorized, new NetworkCredential("wronguser", "wrongpassword")), serverTask);
             }, options);
-        }
-
-        public static IEnumerable<object[]> Authentication_TestData()
-        {
-            yield return new object[] { "Basic realm=\"testrealm\"", true };
-            yield return new object[] { "Basic ", true };
-            yield return new object[] { "Basic realm=withoutquotes", true };
-            yield return new object[] { "basic ", true };
-            yield return new object[] { "bAsiC ", true };
-            yield return new object[] { "basic", true };
-
-            // Add digest tests fail on CurlHandler.
-            // TODO: #28065: Fix failing authentication test cases on different httpclienthandlers.
-            yield return new object[] { "Digest realm=\"testrealm\" nonce=\"testnonce\"", false };
-            yield return new object[] { $"Digest realm=\"testrealm\", nonce=\"{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{DateTimeOffset.UtcNow}:XMh;z+$5|`i6Hx}}\", qop=auth-int, algorithm=MD5"))}\"", true };
-            yield return new object[] { "Digest realm=\"api@example.org\", qop=\"auth\", algorithm=MD5-sess, nonce=\"5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK\", " +
-                    "opaque=\"HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS\", charset=UTF-8, userhash=true", true };
-            yield return new object[] { "dIgEsT realm=\"api@example.org\", qop=\"auth\", algorithm=MD5-sess, nonce=\"5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK\", " +
-                    "opaque=\"HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS\", charset=UTF-8, userhash=true", true };
-            yield return new object[] { $"Basic realm=\"testrealm\", " +
-                    $"Digest realm=\"testrealm\", nonce=\"{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{DateTimeOffset.UtcNow}:XMh;z+$5|`i6Hx}}"))}\", algorithm=MD5", true };
-
-            if (PlatformDetection.IsNetCore)
-            {
-                // TODO: #28060: Fix failing authentication test cases on Framework run.
-                yield return new object[] { "Digest realm=\"testrealm1\", nonce=\"testnonce1\" Digest realm=\"testrealm2\", nonce=\"testnonce2\"", false };
-                yield return new object[] { "Basic something, Digest something", false };
-                yield return new object[] { $"Digest realm=\"testrealm\", nonce=\"testnonce\", algorithm=MD5 " +
-                    $"Basic realm=\"testrealm\"", false };
-            }
         }
 
         [Theory]

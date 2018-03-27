@@ -561,20 +561,17 @@ namespace System.Net.Http.Functional.Tests
 
         [Theory]
         [MemberData(nameof(Authentication_SocketsHttpHandler_TestData))]
-        public async void SocketsHttpHandler_Authentication_Succeeds(string authenticateHeader, bool result)
+        public async void SocketsHttpHandler_Authentication_Succeeds(string authenticateHeader, bool authAttempted, bool authSucceeds)
         {
-            await HttpClientHandler_Authentication_Succeeds(authenticateHeader, result);
+            await HttpClientHandler_Authentication_Succeeds(authenticateHeader, authAttempted, authSucceeds);
         }
 
         public static IEnumerable<object[]> Authentication_SocketsHttpHandler_TestData()
         {
             // These test cases pass on SocketsHttpHandler, fail everywhere else.
             // TODO: #28065: Investigate failing authentication test cases on WinHttpHandler & CurlHandler.
-            yield return new object[] { "Basic realm=\"testrealm1\" basic realm=\"testrealm1\"", true };
-            yield return new object[] { "Basic something digest something", true };
-            yield return new object[] { "Digest ", false };
-            yield return new object[] { "Digest realm=withoutquotes, nonce=withoutquotes", false };
-            yield return new object[] { "Digest realm=\"testrealm\", nonce=\"testnonce\", algorithm=\"myown\"", false };
+            yield return new object[] { "Digest ", false, false };
+            yield return new object[] { "Digest realm=\"testrealm\", nonce=\"testnonce\", algorithm=\"myown\"", false, false };
         }
     }
 
