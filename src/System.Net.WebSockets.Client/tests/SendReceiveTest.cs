@@ -33,7 +33,6 @@ namespace System.Net.WebSockets.Client.Tests
         public SendReceiveTest(ITestOutputHelper output) : base(output) { }
 
         [OuterLoop] // TODO: Issue #11345
-        [ActiveIssue(9296)]
         [ConditionalTheory(nameof(WebSocketsSupported)), MemberData(nameof(EchoServers))]
         public async Task SendReceive_PartialMessageDueToSmallReceiveBuffer_Success(Uri server)
         {
