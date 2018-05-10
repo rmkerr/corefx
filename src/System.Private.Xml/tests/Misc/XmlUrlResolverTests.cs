@@ -63,14 +63,14 @@ namespace System.Xml.Tests
 
         public static IEnumerable<object[]> XmlFileTargets => new object[][]
         {
-            new object[] { "f#/t/\u00eb/test.xml" },
-            new object[] { "/f#/t/\u00eb/t#st.xml" },
-            new object[] { "/f#/\u00e3/\u00eb/t\u00ebst.xml" },
+            new object[] { "f%23/t/\u00eb/test.xml" },
+            new object[] { "/f%23/t/\u00eb/t%23st.xml" },
+            new object[] { "/f%23/\u00e3/\u00eb/t\u00ebst.xml" },
             new object[] { "u/t/c/test.xml" },
-            new object[] { "u/t/c/t#st.xml" },
+            new object[] { "u/t/c/t%23st.xml" },
             new object[] { "/u/t/c/t\u00ebst.xml" },
             new object[] { "test.xml" },
-            new object[] { "t#st.xml" },
+            new object[] { "t%23st.xml" },
             new object[] { "t\u00ebst.xml" }
         };
     }
