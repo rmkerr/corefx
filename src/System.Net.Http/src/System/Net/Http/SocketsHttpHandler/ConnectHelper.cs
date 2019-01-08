@@ -38,7 +38,7 @@ namespace System.Net.Http
             }
         }
 
-        public static async ValueTask<(Socket, Stream)> ConnectAsync(string host, int port, CancellationToken cancellationToken)
+        public static async ValueTask<(Socket, Stream)> ConnectAsync(string host, int port, CancellationToken cancellationToken, CancellationToken originalCancellationToken)
         {
             // Rather than creating a new Socket and calling ConnectAsync on it, we use the static
             // Socket.ConnectAsync with a SocketAsyncEventArgs, as we can then use Socket.CancelConnectAsync
@@ -51,7 +51,8 @@ namespace System.Net.Http
 
             try
             {
-                saea.Initialize(cancellationToken);
+                // The cancellation token here is only used to decide what exception to throw when an error occurs.
+                saea.Initialize(originalCancellationToken);
 
                 // Configure which server to which to connect.
                 saea.RemoteEndPoint = new DnsEndPoint(host, port);
@@ -81,8 +82,8 @@ namespace System.Net.Http
             }
             catch (Exception error)
             {
-                throw CancellationHelper.ShouldWrapInOperationCanceledException(error, cancellationToken) ?
-                    CancellationHelper.CreateOperationCanceledException(error, cancellationToken) :
+                throw CancellationHelper.ShouldWrapInOperationCanceledException(error, originalCancellationToken) ?
+                    CancellationHelper.CreateOperationCanceledException(error, originalCancellationToken) :
                     new HttpRequestException(error.Message, error);
             }
             finally

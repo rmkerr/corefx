@@ -549,11 +549,15 @@ namespace System.Net.Http
             return SendWithProxyAuthAsync(request, doRequestAuth, cancellationToken);
         }
 
+        // MAX NOTE: CancellationToken root #1
         private async ValueTask<(Socket, Stream, TransportContext, HttpResponseMessage)> ConnectAsync(HttpRequestMessage request, bool allowHttp2, CancellationToken cancellationToken)
         {
             // If a non-infinite connect timeout has been set, create and use a new CancellationToken that'll be canceled
-            // when either the original token is canceled or a connect timeout occurs.
+            // when either the original token is canceled or a connect timeout occurs. We still need the original
+            // cancellation token, so that we can tell the difference between a user-initiated cancellation and a
+            // timeout.
             CancellationTokenSource cancellationWithConnectTimeout = null;
+            CancellationToken originalCancellationToken = cancellationToken;
             if (Settings._connectTimeout != Timeout.InfiniteTimeSpan)
             {
                 cancellationWithConnectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default);
@@ -570,11 +574,11 @@ namespace System.Net.Http
                     case HttpConnectionKind.Http:
                     case HttpConnectionKind.Https:
                     case HttpConnectionKind.ProxyConnect:
-                        (socket, stream) = await ConnectHelper.ConnectAsync(_host, _port, cancellationToken).ConfigureAwait(false);
+                        (socket, stream) = await ConnectHelper.ConnectAsync(_host, _port, cancellationToken, originalCancellationToken).ConfigureAwait(false); // Covered
                         break;
 
                     case HttpConnectionKind.Proxy:
-                        (socket, stream) = await ConnectHelper.ConnectAsync(_proxyUri.IdnHost, _proxyUri.Port, cancellationToken).ConfigureAwait(false);
+                        (socket, stream) = await ConnectHelper.ConnectAsync(_proxyUri.IdnHost, _proxyUri.Port, cancellationToken, originalCancellationToken).ConfigureAwait(false); // Covered
                         break;
 
                     case HttpConnectionKind.ProxyTunnel:
@@ -599,6 +603,10 @@ namespace System.Net.Http
                 }
 
                 return (socket, stream, transportContext, null);
+            }
+            catch (Exception exc) when (CancellationHelper.ShouldWrapInOperationCanceledException(exc, originalCancellationToken))
+            {
+                throw CancellationHelper.CreateOperationCanceledException(exc, originalCancellationToken);
             }
             finally
             {
