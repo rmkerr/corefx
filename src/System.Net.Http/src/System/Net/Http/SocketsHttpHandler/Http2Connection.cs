@@ -605,9 +605,9 @@ namespace System.Net.Http
             _incomingBuffer.Discard(frameHeader.Length);
         }
 
-        private async ValueTask AcquireWriteLockAsync()
+        private async ValueTask AcquireWriteLockAsync(CancellationToken cancellationToken)
         {
-            await _writerLock.WaitAsync().ConfigureAwait(false);
+            await _writerLock.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             // If the connection has been aborted, then fail now instead of trying to send more data.
             if (IsAborted())
@@ -627,7 +627,7 @@ namespace System.Net.Http
 
         private async ValueTask SendSettingsAckAsync()
         {
-            await AcquireWriteLockAsync().ConfigureAwait(false);
+            await AcquireWriteLockAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 _outgoingBuffer.EnsureAvailableSpace(FrameHeader.Size);
@@ -645,7 +645,7 @@ namespace System.Net.Http
         {
             Debug.Assert(pingContent.Length == FrameHeader.PingLength);
 
-            await AcquireWriteLockAsync().ConfigureAwait(false);
+            await AcquireWriteLockAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 _outgoingBuffer.EnsureAvailableSpace(FrameHeader.Size + FrameHeader.PingLength);
@@ -663,7 +663,7 @@ namespace System.Net.Http
 
         private async Task SendRstStreamAsync(int streamId, Http2ProtocolErrorCode errorCode)
         {
-            await AcquireWriteLockAsync().ConfigureAwait(false);
+            await AcquireWriteLockAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 _outgoingBuffer.EnsureAvailableSpace(FrameHeader.Size + FrameHeader.RstStreamLength);
@@ -842,12 +842,6 @@ namespace System.Net.Http
                     await FlushOutgoingBytesAsync().ConfigureAwait(false);
                 }
             }
-            
-            catch (OperationCanceledException)
-            {
-                // MAX NOTE: this case should actually be handled by the caller.
-                throw;
-            }
             catch
             {
                 http2Stream.Dispose();
@@ -870,13 +864,13 @@ namespace System.Net.Http
             {
                 int frameSize = Math.Min(remaining.Length, FrameHeader.MaxLength);
 
-                // MAX TODO: handle cancellation later in this method, if it can be done without screwing up credit management.
+                // Once credit had been granted, we want to actually consume those bytes.
                 frameSize = await _connectionWindow.RequestCreditAsync(frameSize, cancellationToken).ConfigureAwait(false);
 
                 ReadOnlyMemory<byte> current;
                 (current, remaining) = SplitBuffer(remaining, frameSize);
 
-                await AcquireWriteLockAsync().ConfigureAwait(false);
+                await AcquireWriteLockAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     _outgoingBuffer.EnsureAvailableSpace(FrameHeader.Size + current.Length);
@@ -895,7 +889,7 @@ namespace System.Net.Http
 
         private async ValueTask SendEndStreamAsync(int streamId)
         {
-            await AcquireWriteLockAsync().ConfigureAwait(false);
+            await AcquireWriteLockAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 _outgoingBuffer.EnsureAvailableSpace(FrameHeader.Size);
