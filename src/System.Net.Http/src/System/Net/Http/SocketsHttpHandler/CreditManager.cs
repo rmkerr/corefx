@@ -49,7 +49,7 @@ namespace System.Net.Http
                     return new ValueTask<int>(granted);
                 }
 
-                var tcs = new TaskCompletionSource<int>(TaskContinuationOptions.RunContinuationsAsynchronously);
+                var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 if (_waiters == null)
                 {
@@ -92,12 +92,11 @@ namespace System.Net.Http
                         waiter.TokenRegistration.Dispose();
 
                         int granted = Math.Min(waiter.Amount, _current);
-                        _current -= granted;
 
                         // Ensure that we grant credit only if the task has not been cancelled.
-                        if (!waiter.TaskCompletionSource.TrySetResult(granted))
+                        if (waiter.TaskCompletionSource.TrySetResult(granted))
                         {
-                            _current += granted;
+                            _current -= granted;
                         }
                     }
                 }

@@ -34,6 +34,7 @@ namespace System.Net.Http
             private readonly HttpResponseMessage _response;
             private readonly HttpConnectionResponseContent _responseContent;
             private bool _disposed;
+            private bool _cancelled;
 
             public Http2Stream(HttpRequestMessage request, Http2Connection connection, int streamId, int initialWindowSize)
             {
@@ -61,6 +62,7 @@ namespace System.Net.Http
             public int StreamId => _streamId;
             public HttpRequestMessage Request => _request;
             public HttpResponseMessage Response => _response;
+            public bool Cancelled => _cancelled;
 
             public async Task SendRequestBodyAsync(CancellationToken cancellationToken)
             {
@@ -74,8 +76,17 @@ namespace System.Net.Http
                 {
                     using (Http2WriteStream writeStream = new Http2WriteStream(this))
                     {
-                        // MAX TODO: Make sure that this does not leave the stream in a bad state.
-                        await _request.Content.CopyToAsync(writeStream, null, cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await _request.Content.CopyToAsync(writeStream, null, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // We must handle cancellation before disposing the stream, so that we can make a decision about
+                            // how to close the stream (with a )
+                            Cancel();
+                            throw;
+                        }
                     }
                 }
             }
@@ -334,6 +345,18 @@ namespace System.Net.Http
                 }
             }
 
+            public void Cancel()
+            {
+                lock (_syncObject)
+                {
+                    if(!_disposed)
+                    {
+                        _cancelled = true;
+                        ValueTask ignored = _connection.SendRstStreamAsync(_streamId, Http2ProtocolErrorCode.StreamClosed);
+                    }
+                }
+            }
+
             private sealed class Http2ReadStream : BaseAsyncStream
             {
                 private readonly Http2Stream _http2Stream;
@@ -393,8 +416,12 @@ namespace System.Net.Http
                         return;
                     }
 
-                    // Don't wait for completion, which could happen asynchronously.
-                    ValueTask ignored = _http2Stream._connection.SendEndStreamAsync(_http2Stream.StreamId);
+                    // If the stream has been cancelled we have already sent a RST_STREAM, and do not need an END_STREAM.
+                    if (!_http2Stream.Cancelled)
+                    {
+                        // Don't wait for completion, which could happen asynchronously.
+                        ValueTask ignored = _http2Stream._connection.SendEndStreamAsync(_http2Stream.StreamId);
+                    }
 
                     base.Dispose(disposing);
                 }
