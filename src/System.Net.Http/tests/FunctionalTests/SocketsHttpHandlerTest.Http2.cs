@@ -438,7 +438,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        //[OuterLoop("Uses Task.Delay")]
+        [OuterLoop("Uses Task.Delay")]
         [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_FlowControl_ClientDoesNotExceedWindows()
         {
@@ -566,7 +566,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        //[OuterLoop("Uses Task.Delay")]
+        [OuterLoop("Uses Task.Delay")]
         [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_InitialWindowSize_ClientDoesNotExceedWindows()
         {
@@ -714,7 +714,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        //[OuterLoop("Uses Task.Delay")]
+        [OuterLoop("Uses Task.Delay")]
         [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_MaxConcurrentStreams_LimitEnforced()
         {
@@ -785,7 +785,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        //[OuterLoop("Uses Task.Delay")]
+        [OuterLoop("Uses Task.Delay")]
         [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_WaitingForStream_Cancellation()
         {
