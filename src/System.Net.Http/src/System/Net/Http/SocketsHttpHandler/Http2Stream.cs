@@ -76,18 +76,11 @@ namespace System.Net.Http
                 {
                     using (Http2WriteStream writeStream = new Http2WriteStream(this))
                     {
-                        try
-                        {
-                            await _request.Content.CopyToAsync(writeStream, null, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            // We must handle cancellation before disposing the stream, so that we can make a decision about
-                            // how to close the stream (with a RST_STREAM or an END_STREAM).
-                            Cancel();
-                            throw;
-                        }
+                        await _request.Content.CopyToAsync(writeStream, null, cancellationToken).ConfigureAwait(false);
                     }
+
+                    // Don't wait for completion, which could happen asynchronously.
+                    ValueTask ignored = _connection.SendEndStreamAsync(_streamId);
                 }
             }
 
@@ -350,7 +343,7 @@ namespace System.Net.Http
                     if(!_disposed)
                     {
                         _cancelled = true;
-                        ValueTask ignored = _connection.SendRstStreamAsync(_streamId, Http2ProtocolErrorCode.StreamClosed);
+                        Task ignored = _connection.SendRstStreamAsync(_streamId, Http2ProtocolErrorCode.Cancel);
                     }
                 }
             }
@@ -412,13 +405,6 @@ namespace System.Net.Http
                     if (Interlocked.Exchange(ref _disposed, 1) != 0)
                     {
                         return;
-                    }
-
-                    // If the stream has been cancelled we have already sent a RST_STREAM, and do not need an END_STREAM.
-                    if (!_http2Stream.Cancelled)
-                    {
-                        // Don't wait for completion, which could happen asynchronously.
-                        ValueTask ignored = _http2Stream._connection.SendEndStreamAsync(_http2Stream.StreamId);
                     }
 
                     base.Dispose(disposing);
